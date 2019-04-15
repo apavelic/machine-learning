@@ -1,0 +1,65 @@
+def sort_by_importance(X, y, features):
+    scores = np.zeros(len(features))
+    for index, i in enumerate(features):    
+        lr = LinearRegression()
+        copy = features.copy();
+        copy.remove(i)
+        sub_X = X[:, copy]        
+        lr.fit(sub_X, y)
+        y_pred = lr.predict(sub_X)
+        scores[index] = r2_score(y, y_pred)
+    sorted_scores_indices = np.argsort(scores)
+    sorted_features = []
+    for i in sorted_scores_indices:
+        sorted_features.append(features[i])
+    return np.array(sorted_features)
+	
+
+def check_best(X, y, features):
+    """
+    Checks the best model for linear regression based on cross validation with mse metric.
+    
+    :param X: np.array with all the candidates predictor variables.
+    :param y: np.array or the response variable.
+    :param features: list of integers representing best indices.
+    :returns: list of feature indices for the best model.
+    """
+    mse_scorer = make_scorer(mean_squared_error)
+    results = []
+    for feature_indices in features:
+        rkf = RepeatedKFold(n_splits=10, n_repeats=10, random_state=42)
+        lr = LinearRegression()
+        cv = cross_validate(lr, X[:, feature_indices], y, scoring=mse_scorer, cv=rkf)
+        results.append(cv["test_score"].mean())
+    return features[np.argmin(results)]
+	
+def backward_stepwise_selection(X, y):
+    number_of_features = range(X.shape[1])
+    removed = [];    
+    feature_indices_to_apply = []
+    best = []
+    
+    for index in number_of_features:
+        feature_indices_to_apply.append(index)
+    
+    while len(number_of_features) - 1 > len(removed):
+        scores = np.zeros(len(feature_indices_to_apply))
+                        
+        for index, i in enumerate(feature_indices_to_apply):    
+            lr = LinearRegression()
+            copy = feature_indices_to_apply.copy();
+            copy.remove(i)
+            sub_X = X[:, copy]
+            lr.fit(sub_X, y)
+            y_pred = lr.predict(sub_X)
+            scores[index] = r2_score(y, y_pred)
+        
+        worst = feature_indices_to_apply[np.argmin(scores)];
+        removed.append(worst);
+        
+        try:
+            feature_indices_to_apply.remove(worst)
+            best.append(feature_indices_to_apply[:])
+        except:
+            continue
+    return check_best(X, y, best)
